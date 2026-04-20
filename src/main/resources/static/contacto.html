@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Formulario de contacto de Night Cart." />
+  <title>Night Cart | Contacto</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container nav-wrap">
+      <h1>Night Cart</h1>
+      <nav aria-label="Navegación principal">
+        <ul class="nav-list">
+          <li><a href="index.html">Inicio</a></li>
+          <li><a href="productos.html">Productos</a></li>
+          <li><a href="carrito.html">Carrito</a></li>
+          <li><a href="contacto.html" class="active">Contacto</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container page-main">
+    <section>
+      <h2>Contacto y reservas de grupo</h2>
+      <p>Atención para eventos privados, cumpleaños y reservas en grupo.</p>
+    </section>
+
+    <section class="card">
+      <h3>Formulario de contacto</h3>
+      <form>
+        <div class="form-grid">
+          <label for="nombre">Nombre</label>
+          <input id="nombre" name="nombre" type="text" required />
+
+          <label for="email">Correo electrónico</label>
+          <input id="email" name="email" type="email" required />
+
+          <label for="producto">Producto (opcional)</label>
+          <select id="producto" name="producto">
+            <option value="">Selecciona producto</option>
+            <option value="azucar-salsa">Salsa al Ritmo del famosísimo y mundialmente conocido Perro Español</option>
+            <option value="maracas-hawaianos">Pack Maracas Tropical + Macarena Trajeados</option>
+            <option value="coconut-bonocopas">Batalla FMS by JD</option>
+            <option value="kharma-olivo">Kharma Private Experience</option>
+            <option value="code-vip-ibuprofeno">Mesa Techno + Kit Bienestar</option>
+            <option value="barcelo-reservado">Reggaeton Classics</option>
+            <option value="jowke-show">Pool Party</option>
+          </select>
+
+          <label for="mensaje">Mensaje</label>
+          <textarea id="mensaje" name="mensaje" rows="5" required></textarea>
+        </div>
+        <button type="submit" class="btn">Enviar</button>
+      </form>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>Night Cart · Contacto y reservas</p>
+    </div>
+  </footer>
+
+</body>
+</html>
