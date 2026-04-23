@@ -26,9 +26,20 @@ src/main/
 └── resources/static/
     ├── *.html (index, productos, carrito, contacto)
     ├── styles.css
-    ├── js/ (carrito.js, productos.js, carrito-ui.js)
+    ├── js/ (carrito.js, productos.js)
     └── assets/media/ (imágenes y videos)
 ```
+
+## Cupón de descuento
+
+- Código válido: `ATILANOPONMEUN10`
+- Descuento aplicado: `10%` sobre el subtotal del carrito
+
+## Credenciales hardcodeadas (sin autenticación)
+
+- Correo demo usado por el carrito: `cliente.demo@nightcart.com`
+- Contraseña demo: `pat2026`
+- La práctica no implementa login ni seguridad real; solo se simulan datos de usuario fijos para crear y gestionar el carrito.
 
 ## Endpoints API REST
 

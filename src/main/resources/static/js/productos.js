@@ -68,6 +68,7 @@ const productos = [
 // Cargar productos cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', function() {
   cargarProductos();
+  enlazarBotonesEstaticos();
 });
 
 // Función para cargar y mostrar productos
@@ -81,6 +82,28 @@ function cargarProductos() {
   productos.forEach(producto => {
     const card = crearTarjetaProducto(producto);
     contenedor.appendChild(card);
+  });
+}
+
+// Si la pagina tiene HTML estatico, enlaza los botones actuales del DOM
+function enlazarBotonesEstaticos() {
+  const botonesTabla = document.querySelectorAll('.table-wrap tbody .btn');
+  const botonesCards = document.querySelectorAll('.product-grid .btn');
+
+  botonesTabla.forEach((boton, index) => {
+    const producto = productos[index];
+    if (!producto) return;
+    boton.addEventListener('click', function() {
+      anadirProductoAlCarrito(producto.id, producto.nombre, producto.precio);
+    });
+  });
+
+  botonesCards.forEach((boton, index) => {
+    const producto = productos[index];
+    if (!producto) return;
+    boton.addEventListener('click', function() {
+      anadirProductoAlCarrito(producto.id, producto.nombre, producto.precio);
+    });
   });
 }
 

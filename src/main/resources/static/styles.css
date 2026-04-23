@@ -187,6 +187,10 @@ textarea {
   min-height: 24px;
 }
 
+.pedido-actions {
+  margin-top: 1rem;
+}
+
 .empty-message {
   margin-top: 12px;
   color: var(--muted);

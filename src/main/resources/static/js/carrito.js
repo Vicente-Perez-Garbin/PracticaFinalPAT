@@ -1,19 +1,46 @@
 // API base URL
 const API_URL = 'http://localhost:8080/api';
 
+// Credenciales demo hardcodeadas (sin autenticacion real)
+const USUARIO_DEMO = {
+  idUsuario: 1,
+  correoUsuario: 'cliente.demo@nightcart.com',
+  contrasena: 'pat2026'
+};
+
+// Catálogo mínimo para mostrar nombres legibles en el carrito
+const NOMBRES_PRODUCTOS = {
+  1: 'Salsa al Ritmo del famosísimo y mundialmente conocido Perro Español',
+  2: 'Pack Maracas Tropical + Macarena Trajeados',
+  3: 'Batalla FMS by JD',
+  4: 'Kharma Private Experience',
+  5: 'Mesa Techno + Kit Bienestar',
+  6: 'Reggaeton Classics',
+  7: 'Pool Party'
+};
+
+const CUPON_DESCUENTO = 'ATILANOPONMEUN10';
+const CUPON_GUARDADO_KEY = 'carritoCuponCodigo';
+let descuentoPorcentaje = 0;
+
 // Objeto para almacenar los datos del carrito actual
 let carritoActual = {
   idCarrito: null,
   lineas: [],
   totalPrecio: 0,
-  idUsuario: 1,
-  correoUsuario: 'usuario@example.com'
+  idUsuario: USUARIO_DEMO.idUsuario,
+  correoUsuario: USUARIO_DEMO.correoUsuario
 };
 
+function obtenerNombreProducto(idArticulo) {
+  return NOMBRES_PRODUCTOS[idArticulo] || `Artículo ${idArticulo}`;
+}
+
 // Inicializar carrito al cargar la página
-document.addEventListener('DOMContentLoaded', function() {
-  inicializarCarrito();
+document.addEventListener('DOMContentLoaded', async function() {
   setupEventListeners();
+  await inicializarCarrito();
+  restaurarCuponGuardado();
 });
 
 // Crear o recuperar carrito
@@ -22,7 +49,11 @@ async function inicializarCarrito() {
   
   if (carritoGuardado) {
     carritoActual.idCarrito = parseInt(carritoGuardado);
-    await cargarCarrito(carritoActual.idCarrito);
+    const cargado = await cargarCarrito(carritoActual.idCarrito);
+    if (!cargado) {
+      localStorage.removeItem('carritoId');
+      await crearCarrito();
+    }
   } else {
     await crearCarrito();
   }
@@ -45,8 +76,11 @@ async function crearCarrito() {
     if (response.ok) {
       const nuevoCarrito = await response.json();
       carritoActual.idCarrito = nuevoCarrito.idCarrito;
+      carritoActual.lineas = [];
+      carritoActual.totalPrecio = 0;
       localStorage.setItem('carritoId', nuevoCarrito.idCarrito);
       console.log('Carrito creado:', nuevoCarrito.idCarrito);
+      document.dispatchEvent(new CustomEvent('carritoActualizado', { detail: carritoActual }));
     }
   } catch (error) {
     console.error('Error al crear carrito:', error);
@@ -60,14 +94,36 @@ async function cargarCarrito(idCarrito) {
     
     if (response.ok) {
       const carrito = await response.json();
-      carritoActual.lineas = carrito.lineas || [];
       carritoActual.totalPrecio = carrito.totalPrecio || 0;
       carritoActual.correoUsuario = carrito.correoUsuario;
       carritoActual.idUsuario = carrito.idUsuario;
+
+      const lineasResponse = await fetch(`${API_URL}/carrito/${idCarrito}/lineas`);
+      if (lineasResponse.ok) {
+        const lineas = await lineasResponse.json();
+        carritoActual.lineas = lineas.map(linea => ({
+          ...linea,
+          nombreArticulo: linea.nombreArticulo || obtenerNombreProducto(linea.idArticulo)
+        }));
+      } else {
+        carritoActual.lineas = [];
+      }
+
       console.log('Carrito cargado:', carrito);
+      document.dispatchEvent(new CustomEvent('carritoActualizado', { detail: carritoActual }));
+      return true;
     }
+
+    if (response.status === 404) {
+      console.warn('Carrito no encontrado, se creará uno nuevo.');
+      return false;
+    }
+
+    console.error('Error al cargar carrito:', response.status, response.statusText);
+    return false;
   } catch (error) {
     console.error('Error al cargar carrito:', error);
+    return false;
   }
 }
 
@@ -199,37 +255,148 @@ function setupEventListeners() {
   document.addEventListener('carritoActualizado', function(e) {
     actualizarUICarrito(e.detail);
   });
+
+  const tramitarPedidoBtn = document.getElementById('tramitarPedidoBtn');
+  if (tramitarPedidoBtn) {
+    tramitarPedidoBtn.addEventListener('click', tramitarPedido);
+  }
   
-  // Aplicar cupón
+  const cuponForm = document.getElementById('cuponForm');
+  if (cuponForm) {
+    cuponForm.addEventListener('submit', function(event) {
+      event.preventDefault();
+      aplicarCupon();
+    });
+  }
+
+  // Aplicar cupón con botón
   const btnAplicarCupon = document.getElementById('aplicarCuponBtn');
   if (btnAplicarCupon) {
-    btnAplicarCupon.addEventListener('click', function() {
-      const cuponInput = document.getElementById('cupon');
-      const cuponFeedback = document.getElementById('cuponFeedback');
-      
-      const codigoCupon = cuponInput.value.trim();
-      
-      if (!codigoCupon) {
-        if (cuponFeedback) {
-          cuponFeedback.textContent = 'Por favor ingresa un código de cupón.';
-          cuponFeedback.style.color = '#ff6b6b';
-        }
-        return;
-      }
-      
-      // Simular validación de cupón
-      if (codigoCupon === 'ATILANOPONMEUN10') {
-        if (cuponFeedback) {
-          cuponFeedback.textContent = 'Cupón válido: 10% de descuento aplicado';
-          cuponFeedback.style.color = '#51cf66';
-        }
-      } else {
-        if (cuponFeedback) {
-          cuponFeedback.textContent = 'Cupón no válido. Intenta con otro código.';
-          cuponFeedback.style.color = '#ff6b6b';
-        }
-      }
-    });
+    btnAplicarCupon.addEventListener('click', aplicarCupon);
+  }
+}
+
+function aplicarCupon() {
+  const cuponInput = document.getElementById('cupon');
+  const cuponFeedback = document.getElementById('cuponFeedback');
+
+  if (!cuponInput) {
+    return;
+  }
+
+  const codigoCupon = cuponInput.value.trim();
+
+  aplicarCuponDesdeCodigo(codigoCupon, true);
+
+  if (!codigoCupon) {
+    if (cuponFeedback) {
+      cuponFeedback.textContent = 'Por favor ingresa un código de cupón.';
+      cuponFeedback.style.color = '#ff6b6b';
+    }
+    return;
+  }
+
+  if (codigoCupon === CUPON_DESCUENTO) {
+    if (cuponFeedback) {
+      cuponFeedback.textContent = 'Cupón válido: 10% de descuento aplicado';
+      cuponFeedback.style.color = '#51cf66';
+    }
+  } else {
+    if (cuponFeedback) {
+      cuponFeedback.textContent = 'Cupón no válido. Intenta con otro código.';
+      cuponFeedback.style.color = '#ff6b6b';
+    }
+  }
+}
+
+function aplicarCuponDesdeCodigo(codigoCupon, persistir) {
+  if (!codigoCupon) {
+    descuentoPorcentaje = 0;
+    localStorage.removeItem(CUPON_GUARDADO_KEY);
+    actualizarTotales(carritoActual);
+    return;
+  }
+
+  if (codigoCupon === CUPON_DESCUENTO) {
+    descuentoPorcentaje = 0.10;
+    if (persistir) {
+      localStorage.setItem(CUPON_GUARDADO_KEY, codigoCupon);
+    }
+  } else {
+    descuentoPorcentaje = 0;
+    localStorage.removeItem(CUPON_GUARDADO_KEY);
+  }
+
+  actualizarTotales(carritoActual);
+}
+
+function restaurarCuponGuardado() {
+  const codigoCupon = localStorage.getItem(CUPON_GUARDADO_KEY);
+  if (!codigoCupon) {
+    return;
+  }
+
+  const cuponInput = document.getElementById('cupon');
+  const cuponFeedback = document.getElementById('cuponFeedback');
+
+  if (cuponInput) {
+    cuponInput.value = codigoCupon;
+  }
+
+  aplicarCuponDesdeCodigo(codigoCupon, false);
+
+  if (cuponFeedback) {
+    if (codigoCupon === CUPON_DESCUENTO) {
+      cuponFeedback.textContent = 'Cupón válido: 10% de descuento aplicado';
+      cuponFeedback.style.color = '#51cf66';
+    } else {
+      cuponFeedback.textContent = 'Cupón no válido. Intenta con otro código.';
+      cuponFeedback.style.color = '#ff6b6b';
+    }
+  }
+}
+
+async function tramitarPedido() {
+  const pedidoFeedback = document.getElementById('pedidoFeedback');
+
+  if (!carritoActual.idCarrito) {
+    if (pedidoFeedback) {
+      pedidoFeedback.textContent = 'No hay carrito activo para tramitar.';
+      pedidoFeedback.style.color = '#ff6b6b';
+    }
+    return;
+  }
+
+  if (carritoActual.lineas.length === 0) {
+    if (pedidoFeedback) {
+      pedidoFeedback.textContent = 'El carrito está vacío. Añade productos antes de tramitar el pedido.';
+      pedidoFeedback.style.color = '#ff6b6b';
+    }
+    return;
+  }
+
+  const idCarritoTramitado = carritoActual.idCarrito;
+
+  if (!confirm('¿Quieres tramitar este pedido y crear un carrito nuevo?')) {
+    return;
+  }
+
+  descuentoPorcentaje = 0;
+  const cuponInput = document.getElementById('cupon');
+  const cuponFeedback = document.getElementById('cuponFeedback');
+  if (cuponInput) {
+    cuponInput.value = '';
+  }
+  if (cuponFeedback) {
+    cuponFeedback.textContent = '';
+  }
+  localStorage.removeItem(CUPON_GUARDADO_KEY);
+
+  await crearCarrito();
+
+  if (pedidoFeedback) {
+    pedidoFeedback.textContent = `Pedido tramitado correctamente (carrito ${idCarritoTramitado}). Ya tienes un carrito nuevo activo.`;
+    pedidoFeedback.style.color = '#51cf66';
   }
 }
 
@@ -248,10 +415,8 @@ function actualizarUICarrito(carrito) {
     if (carritoVacio) {
       carritoVacio.style.display = 'block';
     }
-    document.querySelectorAll('tbody + * tfoot').forEach(el => {
-      if (el.tagName === 'TFOOT') {
-        el.style.display = 'none';
-      }
+    document.querySelectorAll('tfoot').forEach(el => {
+      el.style.display = 'none';
     });
   } else {
     // Ocultar mensaje de carrito vacío
@@ -294,7 +459,7 @@ function actualizarTotales(carrito) {
   const totalEl = document.querySelector('tfoot tr:nth-child(3) th:nth-child(2)');
   
   const total = calcularTotal();
-  const descuento = 0; // Inicialmente sin descuento
+  const descuento = total * descuentoPorcentaje;
   const totalFinal = total - descuento;
   
   if (subtotalEl) {
